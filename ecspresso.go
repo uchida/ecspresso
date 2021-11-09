@@ -78,14 +78,6 @@ func (d *App) DescribeTasksInput(task *ecs.Task) *ecs.DescribeTasksInput {
 	}
 }
 
-func (d *App) GetLogEventsInput(logGroup string, logStream string, startAt int64) *cloudwatchlogs.GetLogEventsInput {
-	return &cloudwatchlogs.GetLogEventsInput{
-		LogGroupName:  aws.String(logGroup),
-		LogStreamName: aws.String(logStream),
-		StartTime:     aws.Int64(startAt),
-	}
-}
-
 func (d *App) FilteredLogEventsInput(logGroup string, logStream string, startAt int64) *cloudwatchlogs.FilterLogEventsInput {
 	return &cloudwatchlogs.FilterLogEventsInput{
 		LogGroupName:   aws.String(logGroup),
@@ -255,26 +247,7 @@ func (d *App) DescribeTaskDefinition(ctx context.Context, tdArn string) (*TaskDe
 	return tdToTaskDefinitionInput(out.TaskDefinition, out.Tags), nil
 }
 
-func (d *App) GetLogEvents(ctx context.Context, logGroup string, logStream string, startedAt time.Time) (int, error) {
-	ms := startedAt.UnixNano() / (int64(time.Millisecond) / int64(time.Nanosecond))
-	out, err := d.cwl.GetLogEventsWithContext(ctx, d.GetLogEventsInput(logGroup, logStream, ms))
-	if err != nil {
-		return 0, err
-	}
-	if len(out.Events) == 0 {
-		return 0, nil
-	}
-	lines := 0
-	for _, event := range out.Events {
-		for _, line := range formatLogEvent(event, TerminalWidth) {
-			fmt.Println(line)
-			lines++
-		}
-	}
-	return lines, nil
-}
-
-func (d *App) GetFilteredLogEvents(ctx context.Context, logGroup string, logStream string, id *string, timestamp int64) (*string, int64, error) {
+func (d *App) GetLogEvents(ctx context.Context, logGroup string, logStream string, id *string, timestamp int64) (*string, int64, error) {
 	out, err := d.cwl.FilterLogEventsWithContext(ctx, d.FilteredLogEventsInput(logGroup, logStream, timestamp))
 	if err != nil {
 		return id, timestamp, err
@@ -287,7 +260,7 @@ func (d *App) GetFilteredLogEvents(ctx context.Context, logGroup string, logStre
 			}
 			continue
 		}
-		for _, line := range formatFilteredLogEvent(event, TerminalWidth) {
+		for _, line := range formatLogEvent(event, TerminalWidth) {
 			fmt.Println(line)
 		}
 		id = event.EventId

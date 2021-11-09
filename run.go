@@ -151,7 +151,7 @@ func (d *App) WaitRunTask(ctx context.Context, task *ecs.Task, watchContainer *e
 			case <-waitCtx.Done():
 				return
 			case <-ticker.C:
-				id, ms, _ = d.GetFilteredLogEvents(waitCtx, logGroup, logStream, id, ms)
+				id, ms, _ = d.GetLogEvents(waitCtx, logGroup, logStream, id, ms)
 			}
 		}
 	}()
