@@ -86,6 +86,14 @@ func (d *App) GetLogEventsInput(logGroup string, logStream string, startAt int64
 	}
 }
 
+func (d *App) FilteredLogEventsInput(logGroup string, logStream string, startAt int64) *cloudwatchlogs.FilterLogEventsInput {
+	return &cloudwatchlogs.FilterLogEventsInput{
+		LogGroupName:   aws.String(logGroup),
+		LogStreamNames: []*string{aws.String(logStream)},
+		StartTime:      aws.Int64(startAt),
+	}
+}
+
 func (d *App) DescribeService(ctx context.Context) (*ecs.Service, error) {
 	out, err := d.ecs.DescribeServicesWithContext(ctx, d.DescribeServicesInput())
 	if err != nil {
@@ -264,6 +272,28 @@ func (d *App) GetLogEvents(ctx context.Context, logGroup string, logStream strin
 		}
 	}
 	return lines, nil
+}
+
+func (d *App) GetFilteredLogEvents(ctx context.Context, logGroup string, logStream string, id *string, timestamp int64) (*string, int64, error) {
+	out, err := d.cwl.FilterLogEventsWithContext(ctx, d.FilteredLogEventsInput(logGroup, logStream, timestamp))
+	if err != nil {
+		return id, timestamp, err
+	}
+	skip := id != nil
+	for _, event := range out.Events {
+		if skip {
+			if *id == *event.EventId {
+				skip = false
+			}
+			continue
+		}
+		for _, line := range formatFilteredLogEvent(event, TerminalWidth) {
+			fmt.Println(line)
+		}
+		id = event.EventId
+		timestamp = *event.Timestamp
+	}
+	return id, timestamp, nil
 }
 
 func NewApp(conf *Config) (*App, error) {
